@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,10 +32,17 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [checking, setChecking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-load status on component mount
+  useEffect(() => {
+    handleCheckStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -75,17 +82,21 @@ export default function UploadPage() {
 
       const result = await response.json();
       setSuccess(true);
+      setSuccessMessage(result.message || "Document uploaded successfully!");
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
 
-      // Show success message with details
-      if (result.message) {
-        console.log("Upload success:", result.message);
-      }
+      // Auto-refresh status after successful upload
+      setTimeout(() => {
+        handleCheckStatus();
+      }, 500);
 
-      setTimeout(() => setSuccess(false), 5000);
+      setTimeout(() => {
+        setSuccess(false);
+        setSuccessMessage("");
+      }, 5000);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setError(`⚠️ ${errorMessage}`);
@@ -232,91 +243,127 @@ export default function UploadPage() {
             </form>
           </Card>
 
-          {/* Status Card */}
-          <div className="space-y-4">
-            <div className="flex gap-3">
-              <Button
-                onClick={handleCheckStatus}
-                disabled={checking}
-                variant="outline"
-                className="flex-1 bg-transparent"
-              >
-                {checking ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Checking...
-                  </>
-                ) : (
-                  "Check Status"
-                )}
-              </Button>
-              <Button
-                onClick={handleClearIndex}
-                variant="destructive"
-                className="flex-1"
-              >
-                Clear Index
-              </Button>
-            </div>
+          {/* Indexed Documents Section */}
+          {status?.index_status && (
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">
+                  📚 Indexed Documents
+                </h2>
+                <Button
+                  onClick={handleCheckStatus}
+                  disabled={checking}
+                  variant="ghost"
+                  size="sm"
+                >
+                  {checking ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "🔄 Refresh"
+                  )}
+                </Button>
+              </div>
 
-            {status && (
-              <Card className="p-4 bg-secondary/50">
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-foreground">
-                    System Status
-                  </p>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Watson Assistant:</strong>{" "}
-                      {status.watson_assistant ? "✅ Active" : "❌ Inactive"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      <strong>LLM Model:</strong>{" "}
-                      {status.llm_model ? "✅ Active" : "❌ Inactive"}
-                    </p>
-                    {status.index_status && (
-                      <>
-                        <p className="text-xs text-muted-foreground">
-                          <strong>Indexed:</strong>{" "}
-                          {status.index_status.indexed ? "Yes" : "No"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          <strong>Total Chunks:</strong>{" "}
-                          {status.index_status.total_chunks}
-                        </p>
-                        {status.index_status.documents &&
-                          status.index_status.documents.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-xs text-muted-foreground font-semibold">
-                                Documents:
-                              </p>
-                              <ul className="text-xs text-muted-foreground pl-4 mt-1">
-                                {status.index_status.documents.map(
-                                  (doc: string, idx: number) => (
-                                    <li key={idx}>• {doc}</li>
-                                  )
-                                )}
-                              </ul>
-                            </div>
-                          )}
-                      </>
+              {status.index_status.documents &&
+              status.index_status.documents.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {status.index_status.documents.length} Document
+                        {status.index_status.documents.length !== 1
+                          ? "s"
+                          : ""}{" "}
+                        Indexed
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {status.index_status.total_chunks} chunks ready for
+                        search
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleClearIndex}
+                      variant="destructive"
+                      size="sm"
+                    >
+                      Clear All
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {status.index_status.documents.map(
+                      (doc: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg border border-border/50"
+                        >
+                          <FileText className="w-5 h-5 text-primary shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {doc}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              PDF Document • Indexed
+                            </p>
+                          </div>
+                          <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
+                        </div>
+                      )
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Active Sessions:</strong>{" "}
-                      {status.active_sessions || 0}
-                    </p>
                   </div>
                 </div>
-              </Card>
-            )}
-          </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    No documents indexed yet
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload a PDF to get started
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* System Status Card */}
+          {status && (
+            <Card className="p-4 bg-secondary/50">
+              <details className="group">
+                <summary className="cursor-pointer font-medium text-sm text-foreground flex items-center justify-between">
+                  <span>⚙️ System Status</span>
+                  <span className="text-xs text-muted-foreground group-open:rotate-180 transition-transform">
+                    ▼
+                  </span>
+                </summary>
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Watson Assistant:</strong>{" "}
+                    {status.watson_assistant ? "✅ Active" : "❌ Inactive"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>LLM Model:</strong>{" "}
+                    {status.llm_model ? "✅ Active" : "❌ Inactive"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Simplification Model:</strong>{" "}
+                    {status.simplification_model ? "✅ Active" : "❌ Inactive"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Active Chat Sessions:</strong>{" "}
+                    {status.active_sessions || 0}
+                  </p>
+                </div>
+              </details>
+            </Card>
+          )}
 
           {/* Alerts */}
           {success && (
             <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
               <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
               <AlertDescription className="text-green-800 dark:text-green-200">
-                ✅ Document successfully indexed in FAISS.
+                ✅ {successMessage}
               </AlertDescription>
             </Alert>
           )}
