@@ -57,7 +57,8 @@ export default function UploadPage() {
     setSuccess(false);
 
     const formData = new FormData();
-    formData.append("file", file);
+    // FastAPI expects 'files' (plural) as the field name
+    formData.append("files", file);
 
     try {
       const response = await fetch("/api/upload", {
@@ -65,18 +66,29 @@ export default function UploadPage() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: "Upload failed" }));
+        throw new Error(errorData.detail || "Upload failed");
+      }
 
+      const result = await response.json();
       setSuccess(true);
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+
+      // Show success message with details
+      if (result.message) {
+        console.log("Upload success:", result.message);
+      }
+
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
-      setError(
-        "⚠️ There was a problem uploading the document. Please try again."
-      );
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      setError(`⚠️ ${errorMessage}`);
       console.error("Error:", err);
     } finally {
       setUploading(false);
