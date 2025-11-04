@@ -1,111 +1,130 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useRef } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, Upload, CheckCircle2, AlertCircle, Loader2, FileText } from "lucide-react"
+import { useState, useRef } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  ArrowLeft,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  FileText,
+} from "lucide-react";
 
 interface Status {
-  status: string
-  message: string
+  watson_assistant: boolean;
+  llm_model: boolean;
+  simplification_model: boolean;
+  index_status: {
+    indexed: boolean;
+    total_chunks: number;
+    documents: string[];
+  };
+  active_sessions: number;
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://xm2jmtrf-8000.inc1.devtunnels.ms"
-
 export default function UploadPage() {
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [status, setStatus] = useState<Status | null>(null)
-  const [checking, setChecking] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status | null>(null);
+  const [checking, setChecking] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
+    const selectedFile = e.target.files?.[0];
     if (selectedFile && selectedFile.type === "application/pdf") {
-      setFile(selectedFile)
-      setError(null)
+      setFile(selectedFile);
+      setError(null);
     } else {
-      setError("Please select a valid PDF file.")
-      setFile(null)
+      setError("Please select a valid PDF file.");
+      setFile(null);
     }
-  }
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!file) return
+    e.preventDefault();
+    if (!file) return;
 
-    setUploading(true)
-    setError(null)
-    setSuccess(false)
+    setUploading(true);
+    setError(null);
+    setSuccess(false);
 
-    const formData = new FormData()
-    formData.append("file", file)
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/upload`, {
+      const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
-      })
+      });
 
-      if (!response.ok) throw new Error("Upload failed")
+      if (!response.ok) throw new Error("Upload failed");
 
-      setSuccess(true)
-      setFile(null)
+      setSuccess(true);
+      setFile(null);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
-      setTimeout(() => setSuccess(false), 5000)
+      setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
-      setError("⚠️ There was a problem uploading the document. Please try again.")
-      console.error("Error:", err)
+      setError(
+        "⚠️ There was a problem uploading the document. Please try again."
+      );
+      console.error("Error:", err);
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   const handleCheckStatus = async () => {
-    setChecking(true)
-    setError(null)
+    setChecking(true);
+    setError(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/status`)
-      if (!response.ok) throw new Error("Failed to get status")
+      const response = await fetch("/api/status");
+      if (!response.ok) throw new Error("Failed to get status");
 
-      const data = await response.json()
-      setStatus(data)
+      const data = await response.json();
+      setStatus(data);
     } catch (err) {
-      setError("⚠️ Could not retrieve status. Please try again.")
-      console.error("Error:", err)
+      setError("⚠️ Could not retrieve status. Please try again.");
+      console.error("Error:", err);
     } finally {
-      setChecking(false)
+      setChecking(false);
     }
-  }
+  };
 
   const handleClearIndex = async () => {
-    if (!confirm("Are you sure you want to clear the index? This cannot be undone.")) return
+    if (
+      !confirm(
+        "Are you sure you want to clear the index? This cannot be undone."
+      )
+    )
+      return;
 
-    setError(null)
+    setError(null);
     try {
-      const response = await fetch(`${BACKEND_URL}/clear`, {
+      const response = await fetch("/api/clear", {
         method: "DELETE",
-      })
+      });
 
-      if (!response.ok) throw new Error("Clear failed")
+      if (!response.ok) throw new Error("Clear failed");
 
-      setSuccess(true)
-      setStatus(null)
-      setTimeout(() => setSuccess(false), 5000)
+      setSuccess(true);
+      setStatus(null);
+      setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
-      setError("⚠️ Failed to clear the index. Please try again.")
-      console.error("Error:", err)
+      setError("⚠️ Failed to clear the index. Please try again.");
+      console.error("Error:", err);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,8 +138,12 @@ export default function UploadPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Upload Legal Documents</h1>
-            <p className="text-xs text-muted-foreground">Enhance the knowledge base with PDFs</p>
+            <h1 className="text-xl font-bold text-foreground">
+              Upload Legal Documents
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Enhance the knowledge base with PDFs
+            </p>
           </div>
         </div>
       </header>
@@ -132,12 +155,20 @@ export default function UploadPage() {
           <Card className="p-8">
             <form onSubmit={handleUpload} className="space-y-6">
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-foreground">Select PDF Document</label>
+                <label className="block text-sm font-medium text-foreground">
+                  Select PDF Document
+                </label>
                 <div
                   className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
                   <div className="space-y-3">
                     <div className="flex justify-center">
                       <Upload className="w-8 h-8 text-muted-foreground" />
@@ -146,7 +177,9 @@ export default function UploadPage() {
                       <p className="text-sm font-medium text-foreground">
                         {file ? file.name : "Click to upload or drag and drop"}
                       </p>
-                      <p className="text-xs text-muted-foreground">PDF files only</p>
+                      <p className="text-xs text-muted-foreground">
+                        PDF files only
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -154,15 +187,24 @@ export default function UploadPage() {
 
               {file && (
                 <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg">
-                  <FileText className="w-5 h-5 text-primary flex-shrink-0" />
+                  <FileText className="w-5 h-5 text-primary shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
                   </div>
                 </div>
               )}
 
-              <Button type="submit" disabled={!file || uploading} className="w-full gap-2" size="lg">
+              <Button
+                type="submit"
+                disabled={!file || uploading}
+                className="w-full gap-2"
+                size="lg"
+              >
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -196,21 +238,60 @@ export default function UploadPage() {
                   "Check Status"
                 )}
               </Button>
-              <Button onClick={handleClearIndex} variant="destructive" className="flex-1">
+              <Button
+                onClick={handleClearIndex}
+                variant="destructive"
+                className="flex-1"
+              >
                 Clear Index
               </Button>
             </div>
 
             {status && (
               <Card className="p-4 bg-secondary/50">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Index Status</p>
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-foreground">
+                    System Status
+                  </p>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">
-                      <strong>Status:</strong> {status.status}
+                      <strong>Watson Assistant:</strong>{" "}
+                      {status.watson_assistant ? "✅ Active" : "❌ Inactive"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      <strong>Info:</strong> {status.message}
+                      <strong>LLM Model:</strong>{" "}
+                      {status.llm_model ? "✅ Active" : "❌ Inactive"}
+                    </p>
+                    {status.index_status && (
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Indexed:</strong>{" "}
+                          {status.index_status.indexed ? "Yes" : "No"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Total Chunks:</strong>{" "}
+                          {status.index_status.total_chunks}
+                        </p>
+                        {status.index_status.documents &&
+                          status.index_status.documents.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs text-muted-foreground font-semibold">
+                                Documents:
+                              </p>
+                              <ul className="text-xs text-muted-foreground pl-4 mt-1">
+                                {status.index_status.documents.map(
+                                  (doc: string, idx: number) => (
+                                    <li key={idx}>• {doc}</li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                          )}
+                      </>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Active Sessions:</strong>{" "}
+                      {status.active_sessions || 0}
                     </p>
                   </div>
                 </div>
@@ -242,20 +323,26 @@ export default function UploadPage() {
               <ul className="text-sm text-muted-foreground space-y-2">
                 <li>• Upload PDF documents containing legal information</li>
                 <li>• Documents are indexed using FAISS for fast retrieval</li>
-                <li>• The chatbot uses indexed documents to answer questions</li>
-                <li>• You can upload multiple documents to build a comprehensive knowledge base</li>
+                <li>
+                  • The chatbot uses indexed documents to answer questions
+                </li>
+                <li>
+                  • You can upload multiple documents to build a comprehensive
+                  knowledge base
+                </li>
               </ul>
             </div>
           </Card>
 
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
             <p className="text-sm text-muted-foreground">
-              <strong>Disclaimer:</strong> This information is for general guidance. Please consult a certified lawyer
-              for official legal advice.
+              <strong>Disclaimer:</strong> This information is for general
+              guidance. Please consult a certified lawyer for official legal
+              advice.
             </p>
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }
