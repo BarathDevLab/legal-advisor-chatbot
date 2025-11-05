@@ -53,55 +53,64 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [awaitingFollowUp, setAwaitingFollowUp] = useState(false);
   const [conversationContext, setConversationContext] = useState<string[]>([]);
+  const [isGoodbye, setIsGoodbye] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Initialize session when component mounts
-  useEffect(() => {
-    const initSession = async () => {
-      try {
-        const response = await fetch("/api/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: "sit23cs199@sairamtap.edu.in" }),
-        });
+  // Initialize or re-initialize session
+  const initSession = async () => {
+    try {
+      const response = await fetch("/api/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: "sit23cs199@sairamtap.edu.in" }),
+      });
 
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ error: "Unknown error" }));
-          throw new Error(
-            `Session creation failed (${response.status}): ${
-              errorData.error || response.statusText
-            }`
-          );
-        }
-
-        const data = await response.json();
-        setSessionId(data.session_id);
-
-        // Add welcome message from backend
-        if (data.welcome_message) {
-          setMessages([
-            {
-              id: "welcome",
-              type: "assistant",
-              content: data.welcome_message,
-            },
-          ]);
-        }
-      } catch (err) {
-        console.error("Error initializing session:", err);
-        setError(
-          `❌ Failed to connect to backend server. Please ensure the backend is running. Error: ${
-            err instanceof Error ? err.message : "Unknown error"
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        throw new Error(
+          `Session creation failed (${response.status}): ${
+            errorData.error || response.statusText
           }`
         );
       }
-    };
+
+      const data = await response.json();
+      setSessionId(data.session_id);
+
+      // Add welcome message from backend
+      if (data.welcome_message) {
+        setMessages([
+          {
+            id: "welcome",
+            type: "assistant",
+            content: data.welcome_message,
+          },
+        ]);
+      }
+
+      // Reset conversation state
+      setIsGoodbye(false);
+      setAwaitingFollowUp(false);
+      setConversationContext([]);
+      setError(null);
+    } catch (err) {
+      console.error("Error initializing session:", err);
+      setError(
+        `❌ Failed to connect to backend server. Please ensure the backend is running. Error: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+    }
+  };
+
+  // Initialize session when component mounts
+  useEffect(() => {
     initSession();
   }, []);
 
@@ -139,12 +148,14 @@ export default function Home() {
       if (!response.ok) throw new Error("Failed to get response");
 
       const data = await response.json();
-
+      console.log("Response data:", data);
       // Check Watson stage for follow-ups and session status
-      const watsonStage = data.watson_stage;
+      console.log("Response data:", data.watson_responses);
+      const watsonStage = data.watson_responses?.[0];
       const hasFollowUps =
         watsonStage?.follow_ups && watsonStage.follow_ups.length > 0;
-      const isGoodbye = watsonStage?.is_goodbye || false;
+      const isGoodbyeFlag = watsonStage == 'goodbye' || watsonStage == "Goodbye";
+      console.log("isGoodbye:", isGoodbyeFlag, watsonStage);
 
       // Build message stages
       const stages: MessageStages = {};
@@ -180,8 +191,9 @@ export default function Home() {
       setMessages((prev) => [...prev, assistantMessage]);
 
       // Update conversation state based on Watson response
-      if (isGoodbye) {
-        // Watson said goodbye - reset conversation
+      setIsGoodbye(isGoodbyeFlag);
+      if (isGoodbyeFlag) {
+        // Watson said goodbye - reset conversation state
         setAwaitingFollowUp(false);
         setConversationContext([]);
       } else if (hasFollowUps) {
@@ -466,34 +478,51 @@ export default function Home() {
       {/* Footer for sending messages */}
       <footer className="border-t border-border bg-card sticky bottom-0">
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4">
-          <form onSubmit={handleSendMessage} className="flex gap-3">
-            <Input
-              placeholder={
-                !sessionId
-                  ? "Initializing chat session..."
-                  : awaitingFollowUp
-                  ? "Answer Watson's question..."
-                  : "Ask your legal question..."
-              }
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={loading || !sessionId}
-              className="flex-1 text-sm"
-            />
-            <Button
-              type="submit"
-              disabled={loading || !input.trim() || !sessionId}
-              size="sm"
-              className="gap-2"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
+          {!isGoodbye && (
+            <form onSubmit={handleSendMessage} className="flex gap-3">
+              <Input
+                placeholder={
+                  !sessionId
+                    ? "Initializing chat session..."
+                    : awaitingFollowUp
+                    ? "Answer Watson's question..."
+                    : "Ask your legal question..."
+                }
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={loading || !sessionId}
+                className="flex-1 text-sm"
+              />
+              <Button
+                type="submit"
+                disabled={loading || !input.trim() || !sessionId}
+                size="sm"
+                className="gap-2"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Send
+              </Button>
+            </form>
+          )}
+          {isGoodbye && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => {
+                  // Re-initialize session with fresh welcome message and reset state
+                  console.log("Starting new conversation, resetting all state");
+                  initSession();
+                }}
+                className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
                 <Send className="w-4 h-4" />
-              )}
-              Send
-            </Button>
-          </form>
+                New Chat
+              </button>
+            </div>
+          )}
         </div>
       </footer>
     </div>
