@@ -5,11 +5,13 @@
 ### Steps to Deploy on Render:
 
 #### 1. Create Web Service on Render
+
 - Go to [Render Dashboard](https://dashboard.render.com/)
 - Click **"New +"** → **"Web Service"**
 - Connect your GitHub repository
 
 #### 2. Configure Service
+
 ```yaml
 Name: legal-advisor-backend
 Environment: Python 3
@@ -21,6 +23,7 @@ Start Command: python "bhararth1 (1).py"
 ```
 
 #### 3. Add Environment Variables
+
 In Render dashboard, add these environment variables:
 
 ```
@@ -35,10 +38,13 @@ MODEL_ID=ibm/granite-3-8b-instruct
 ```
 
 #### 4. Update Frontend API Routes
+
 After deployment, copy your Render URL (e.g., `https://your-app.onrender.com`)
 
 Update in your Next.js project:
+
 - Create/update `.env.local`:
+
 ```
 BACKEND_URL=https://your-app.onrender.com
 ```
@@ -46,6 +52,7 @@ BACKEND_URL=https://your-app.onrender.com
 #### 5. Important Notes
 
 **Free Tier Limitations:**
+
 - Service spins down after 15 minutes of inactivity
 - First request after spin-down takes ~30-60 seconds
 - Upgrade to paid tier ($7/month) for always-on
@@ -54,6 +61,7 @@ BACKEND_URL=https://your-app.onrender.com
 The backend already handles CORS automatically with FastAPI.
 
 **File Storage:**
+
 - Render's filesystem is ephemeral
 - Uploaded PDFs and FAISS index will reset on each deploy
 - Consider using external storage (AWS S3, Cloudinary) for production
