@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL =
-  process.env.BACKEND_URL || "https://xm2jmtrf-8000.inc1.devtunnels.ms";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       return NextResponse.json(
         { error: "Failed to get status from backend" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
     console.error("Error proxying status request to backend:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
